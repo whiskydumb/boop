@@ -12,7 +12,9 @@
 
 </div>
 
-![boop's main window: a compact list of apps with play/pause buttons and a search field.][header-screenshot]
+<div align="center">
+  <img src="assets/screenshot.png" alt="boop's main window: a compact list of apps with play/pause buttons and a search field." width="300" />
+</div>
 
 ## what it is
 
@@ -73,4 +75,3 @@ Lucide icons among others. full notices and license texts live in
 [header-platform-badge]: https://img.shields.io/badge/platform-windows-blue?style=flat-square
 [header-repo-license-badge]: https://img.shields.io/github/license/whiskydumb/boop?style=flat-square
 [repo-license]: https://github.com/whiskydumb/boop/blob/HEAD/LICENSE
-[header-screenshot]: assets/screenshot.png
