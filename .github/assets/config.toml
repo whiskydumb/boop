@@ -1,0 +1,238 @@
+# boop configuration.
+# paths are relative to this file unless absolute.
+apps_dir = "apps"
+catalogs = []
+
+[[apps]]
+id   = "where-winds-meet"
+name = "Where Winds Meet"
+exe  = "Win64/wwm.exe"
+args = []
+
+[[apps]]
+id   = "goddess-of-victory-nikke"
+name = "Goddess of Victory: Nikke"
+exe  = "Game/nikke.exe"
+args = []
+
+[[apps]]
+id   = "marvel-rivals"
+name = "Marvel Rivals"
+exe  = "Win64/Marvel-Win64-Shipping.exe"
+args = []
+
+[[apps]]
+id   = "grounded-2"
+name = "Grounded 2"
+exe  = "WinGRTS/Grounded2-WinGRTS-Shipping.exe"
+args = []
+
+[[apps]]
+id   = "opera-gx"
+name = "Opera GX"
+exe  = "Opera GX/opera.exe"
+args = []
+
+[[apps]]
+id   = "toxic-commando"
+name = "John Carpenter's Toxic Commando"
+exe  = "John Carpenter's Toxic Commando Demo/John Carpenter's Toxic Commando.exe"
+args = []
+
+[[apps]]
+id   = "once-human"
+name = "Once Human"
+exe  = "Once Human/Once_Human.exe"
+args = []
+
+[[apps]]
+id   = "pubg"
+name = "PUBG"
+exe  = "Win64/TslGame.exe"
+args = []
+
+[[apps]]
+id   = "terminull-brigade"
+name = "Terminull Brigade"
+exe  = "Win64/Rouge-Win64-Shipping.exe"
+args = []
+
+[[apps]]
+id   = "wuthering-waves"
+name = "Wuthering Waves"
+exe  = "Win64/Wuthering Waves.exe"
+args = []
+
+[[apps]]
+id   = "comet-ai-browser"
+name = "Comet AI Browser"
+exe  = "Perplexity/Comet/Application/comet.exe"
+args = []
+
+[[apps]]
+id   = "destiny-2"
+name = "Destiny 2"
+exe  = "Destiny 2/destiny2.exe"
+args = []
+
+[[apps]]
+id   = "risk-of-rain-2"
+name = "Risk of Rain 2"
+exe  = "Risk of Rain 2/Risk of Rain 2.exe"
+args = []
+
+[[apps]]
+id   = "storm-lancers-demo"
+name = "Storm Lancers Demo"
+exe  = "Storm Lancers Demo/StormLancersDemo.exe"
+args = []
+
+[[apps]]
+id   = "pragmata"
+name = "Pragmata"
+exe  = "PRAGMATA SKETCHBOOK/PRAGMATA_SKETCHBOOK.exe"
+args = []
+
+[[apps]]
+id   = "path-of-exile-2"
+name = "Path of Exile 2"
+exe  = "Grinding Gear Games/Path of Exile 2/pathofexile.exe"
+args = []
+
+[[apps]]
+id   = "arc-raiders"
+name = "Arc Raiders"
+exe  = "Arc Raiders/PioneerGame.exe"
+args = []
+
+[[apps]]
+id   = "hunt-showdown-1896"
+name = "Hunt: Showdown 1896"
+exe  = "win_x64/HuntGame.exe"
+args = []
+
+[[apps]]
+id   = "delta-force"
+name = "Delta Force"
+exe  = "Win64/DeltaForceClient-Win64-Shipping.exe"
+args = []
+
+[[apps]]
+id   = "fallout-4"
+name = "Fallout 4"
+exe  = "Fallout4/Fallout4.exe"
+args = []
+
+[[apps]]
+id   = "fallout-76"
+name = "Fallout 76"
+exe  = "Fallout76/Fallout76.exe"
+args = []
+
+[[apps]]
+id   = "arena-breakout-infinite"
+name = "Arena Breakout: Infinite"
+exe  = "Win64/UAGame.exe"
+args = []
+
+[[apps]]
+id   = "valorant"
+name = "Valorant"
+exe  = "Win64/Valorant-Win64-Shipping.exe"
+args = []
+
+[[apps]]
+id   = "raid-shadow-legends"
+name = "RAID: Shadow Legends"
+exe  = "build/Raid.exe"
+args = []
+
+[[apps]]
+id   = "torchlight-infinite"
+name = "Torchlight: Infinite"
+exe  = "Win64/torchlight_infinite.exe"
+args = []
+
+[[apps]]
+id   = "blue-protocol-star-resonance"
+name = "Blue Protocol: Star Resonance"
+exe  = "Win64/bpsr.exe"
+args = []
+
+[[apps]]
+id   = "arknights-endfield"
+name = "Arknights: Endfield"
+exe  = "Game/Endfield.exe"
+args = []
+
+[[apps]]
+id   = "2xko"
+name = "2XKO"
+exe  = "2XKO/Live/Lion/Binaries/Win64/Lion-Win64-Shipping.exe"
+args = []
+
+[[apps]]
+id   = "highguard"
+name = "Highguard"
+exe  = "Win64/HighguardClient-Win64-Shipping.exe"
+args = []
+
+[[apps]]
+id   = "skate"
+name = "Skate"
+exe  = "Steam/steamapps/common/skate/skate.exe"
+args = []
+
+[[apps]]
+id   = "summoners-war"
+name = "Summoners War"
+exe  = "Summoners War/SummonersWar.exe"
+args = []
+
+[[apps]]
+id   = "world-of-warcraft-midnight"
+name = "World of Warcraft: Midnight"
+exe  = "World of Warcraft/_retail_/Wow.exe"
+args = []
+
+[[apps]]
+id   = "vindictus"
+name = "Vindictus"
+exe  = "Vindictus/Vindictus.exe"
+args = []
+
+[[apps]]
+id   = "honkai-star-rail"
+name = "Honkai: Star Rail"
+exe  = "Games/StarRail.exe"
+args = []
+
+[[apps]]
+id   = "genshin-impact"
+name = "Genshin Impact"
+exe  = "Genshin Impact Game/GenshinImpact.exe"
+args = []
+
+[[apps]]
+id   = "neverness-to-everness"
+name = "Neverness to Everness"
+exe  = "Win64/HTGame.exe"
+args = []
+
+[[apps]]
+id   = "roblox"
+name = "Roblox"
+exe  = "Roblox/Roblox.exe"
+args = []
+
+[[apps]]
+id   = "rune-dice"
+name = "Rune Dice"
+exe  = "Rune Dice/Rune Dice.exe"
+args = []
+
+[[apps]]
+id   = "wgcs-api"
+name = "World of Tanks: HEAT"
+exe  = "WoT HEAT/wgcs_api.exe"
+args = []
