@@ -236,3 +236,9 @@ id   = "wgcs-api"
 name = "World of Tanks: HEAT"
 exe  = "WoT HEAT/wgcs_api.exe"
 args = []
+
+[[apps]]
+id   = "dna-game"
+name = "Duet Night Abyss"
+exe  = "Duet Night Abyss/EM-Win64-Shipping.exe"
+args = []

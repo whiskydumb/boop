@@ -9,6 +9,8 @@ use gpui::{
 use crate::features::apps::AppEntry;
 use crate::features::config::{Config, ConfigStore};
 use crate::features::launcher::Launcher;
+use crate::features::update::{self, UpdateInfo};
+use crate::platform;
 use crate::ui::icon::{IconName, icon};
 use crate::ui::theme;
 
@@ -22,6 +24,7 @@ pub struct Hub {
     error: Option<String>,
     query: String,
     search_focus: FocusHandle,
+    update: Option<UpdateInfo>,
 }
 
 impl Hub {
@@ -43,12 +46,31 @@ impl Hub {
         })
         .detach();
 
+        cx.spawn(async move |this, cx| {
+            let found = cx
+                .background_executor()
+                .spawn(async move { update::check() })
+                .await;
+            match found {
+                Ok(Some(info)) => {
+                    let _ = this.update(cx, |this, cx| {
+                        this.update = Some(info);
+                        cx.notify();
+                    });
+                }
+                Ok(None) => {}
+                Err(error) => eprintln!("update check failed: {error:#}"),
+            }
+        })
+        .detach();
+
         Self {
             store,
             launcher: Launcher::new(),
             error: None,
             query: String::new(),
             search_focus: cx.focus_handle(),
+            update: None,
         }
     }
 
@@ -136,6 +158,56 @@ impl Hub {
             .gap_2()
             .overflow_y_scroll()
             .children(rows)
+            .into_any_element()
+    }
+
+    fn render_update_bar(&self, info: &UpdateInfo, cx: &mut Context<Self>) -> AnyElement {
+        let url = info.url.clone();
+
+        div()
+            .id("update-bar")
+            .flex()
+            .items_center()
+            .gap_2()
+            .flex_none()
+            .px(px(10.0))
+            .py(px(5.0))
+            .rounded_lg()
+            .bg(rgb(theme::UPDATE_BAR))
+            .text_color(rgb(theme::ON_ACCENT))
+            .text_sm()
+            .cursor_pointer()
+            .hover(|style| style.bg(rgb(theme::UPDATE_BAR_HOVER)))
+            .on_click(cx.listener(move |_this, _event, _window, _cx| {
+                platform::open_url(&url);
+            }))
+            .child(
+                div()
+                    .flex_1()
+                    .min_w_0()
+                    .overflow_hidden()
+                    .text_ellipsis()
+                    .whitespace_nowrap()
+                    .child(format!("Update available: v{}", info.version)),
+            )
+            .child(
+                div()
+                    .id("update-dismiss")
+                    .flex_none()
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .size_4()
+                    .rounded_md()
+                    .text_color(rgba(0xfffbf5cc))
+                    .hover(|style| style.text_color(rgb(theme::ON_ACCENT)))
+                    .child("\u{00d7}")
+                    .on_click(cx.listener(|this, _event, _window, cx| {
+                        cx.stop_propagation();
+                        this.update = None;
+                        cx.notify();
+                    })),
+            )
             .into_any_element()
     }
 
@@ -293,6 +365,11 @@ impl Render for Hub {
                     .child(self.render_search(cx)),
             )
             .child(self.render_list(cx))
+            .children(
+                self.update
+                    .as_ref()
+                    .map(|info| self.render_update_bar(info, cx)),
+            )
     }
 }
 
