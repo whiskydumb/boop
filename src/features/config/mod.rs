@@ -68,7 +68,10 @@ impl Config {
 
     fn read(root: &Path, path: &Path) -> Result<Self> {
         let raw = fs::read_to_string(path).with_context(|| {
-            format!("failed to read {} (the file must be UTF-8 text)", path.display())
+            format!(
+                "failed to read {} (the file must be UTF-8 text)",
+                path.display()
+            )
         })?;
         let raw = raw.strip_prefix('\u{feff}').unwrap_or(&raw);
         let mut config: Config = parse_lenient(raw)
@@ -85,7 +88,10 @@ impl Config {
         let mut seen = HashSet::with_capacity(self.apps.len());
         for app in &self.apps {
             if app.id.trim().is_empty() {
-                bail!("app '{}' has an empty id; every entry needs a unique id", app.name);
+                bail!(
+                    "app '{}' has an empty id; every entry needs a unique id",
+                    app.name
+                );
             }
             if !seen.insert(app.id.as_str()) {
                 bail!("duplicate app id '{}'; ids must be unique", app.id);

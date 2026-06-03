@@ -41,8 +41,8 @@ pub fn check() -> Result<Option<UpdateInfo>> {
 
     let latest = semver::Version::parse(release.tag_name.trim_start_matches('v'))
         .with_context(|| format!("unparseable release tag '{}'", release.tag_name))?;
-    let current = semver::Version::parse(env!("CARGO_PKG_VERSION"))
-        .expect("crate version is valid semver");
+    let current =
+        semver::Version::parse(env!("CARGO_PKG_VERSION")).expect("crate version is valid semver");
 
     if latest > current {
         Ok(Some(UpdateInfo {

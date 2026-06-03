@@ -178,7 +178,7 @@ impl Hub {
             step,
         });
 
-        // launch the first app; if it cant start, skip ahead like a normal step 
+        // launch the first app; if it cant start, skip ahead like a normal step
         if let Some(first) = self.queue.as_ref().and_then(|q| q.ids.first()).cloned() {
             if self.launch_id(&first) {
                 if let Some(queue) = &mut self.queue {
