@@ -5,6 +5,7 @@ pub enum IconName {
     Play,
     Pause,
     Search,
+    RunAll,
 }
 
 impl IconName {
@@ -13,6 +14,7 @@ impl IconName {
             IconName::Play => "icons/play.svg",
             IconName::Pause => "icons/pause.svg",
             IconName::Search => "icons/search.svg",
+            IconName::RunAll => "icons/run-all.svg",
         }
     }
 }
