@@ -2,6 +2,8 @@
 # paths are relative to this file unless absolute.
 apps_dir = "apps"
 catalogs = []
+# minutes each app stays open when running the whole list via "run all".
+quest_minutes = 15
 
 [[apps]]
 id   = "where-winds-meet"

@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use gpui::{
     AnyElement, Context, FocusHandle, IntoElement, KeyDownEvent, SharedString, Window, div,
@@ -18,6 +18,13 @@ const MUTED: u32 = 0xf0e3de99;
 const SURFACE: u32 = 0xffffff14;
 const SEPARATOR: u32 = 0xffffff10;
 
+struct Queue {
+    ids: Vec<String>,
+    index: usize,
+    ends_at: Instant,
+    step: Duration,
+}
+
 pub struct Hub {
     store: Arc<ConfigStore>,
     launcher: Launcher,
@@ -26,6 +33,8 @@ pub struct Hub {
     search_focus: FocusHandle,
     update: Option<UpdateInfo>,
     error_expanded: bool,
+    queue: Option<Queue>,
+    search_open: bool,
 }
 
 impl Hub {
@@ -36,10 +45,18 @@ impl Hub {
                 let alive = this.update(cx, |this, cx| {
                     let exited = this.launcher.poll();
                     let reloaded = this.store.take_dirty();
+                    let queue_was_active = this.queue.is_some();
+                    let queue_active = this.tick_queue(exited);
                     if this.error_expanded && this.store.error().is_none() {
                         this.error_expanded = false;
                     }
-                    if exited || reloaded || this.launcher.running_id().is_some() {
+                    // redraw while a pass runs (countdown) and on the tick it ends.
+                    if exited
+                        || reloaded
+                        || queue_was_active
+                        || queue_active
+                        || this.launcher.running_id().is_some()
+                    {
                         cx.notify();
                     }
                 });
@@ -76,6 +93,8 @@ impl Hub {
             search_focus: cx.focus_handle(),
             update: None,
             error_expanded: false,
+            queue: None,
+            search_open: false,
         }
     }
 
@@ -93,7 +112,10 @@ impl Hub {
             "backspace" => {
                 self.query.pop();
             }
-            "escape" => self.query.clear(),
+            "escape" => {
+                self.query.clear();
+                self.search_open = false;
+            }
             _ => {
                 if let Some(text) = &event.keystroke.key_char
                     && !text.chars().any(char::is_control)
@@ -106,6 +128,13 @@ impl Hub {
     }
 
     fn status_line(&self) -> String {
+        if let Some(queue) = &self.queue {
+            let position = queue.index + 1;
+            let total = queue.ids.len();
+            let left = queue.ends_at.saturating_duration_since(Instant::now());
+            return format!("Queue {position}/{total}  |  {} left", format_runtime(left));
+        }
+
         if let Some(error) = &self.error {
             return format!("! {error}");
         }
@@ -113,6 +142,112 @@ impl Hub {
         match self.launcher.running_since() {
             Some(since) => format!("Uptime  {}", format_runtime(since.elapsed())),
             None => "Idle".to_string(),
+        }
+    }
+
+    fn queue_active(&self) -> bool {
+        self.queue.is_some()
+    }
+
+    fn toggle_queue(&mut self) {
+        if self.queue.is_some() {
+            self.stop_queue();
+        } else {
+            self.start_queue();
+        }
+    }
+
+    fn start_queue(&mut self) {
+        let config = self.config();
+        let query = self.query.trim().to_lowercase();
+        let ids: Vec<String> = config
+            .apps()
+            .iter()
+            .filter(|app| query.is_empty() || app.name.to_lowercase().contains(&query))
+            .map(|app| app.id.clone())
+            .collect();
+        if ids.is_empty() {
+            return;
+        }
+
+        let step = Duration::from_secs(u64::from(config.quest_minutes.max(1)) * 60);
+        self.queue = Some(Queue {
+            ids,
+            index: 0,
+            ends_at: Instant::now() + step,
+            step,
+        });
+
+        // launch the first app; if it cant start, skip ahead like a normal step 
+        if let Some(first) = self.queue.as_ref().and_then(|q| q.ids.first()).cloned() {
+            if self.launch_id(&first) {
+                if let Some(queue) = &mut self.queue {
+                    queue.ends_at = Instant::now() + step;
+                }
+            } else {
+                self.advance_queue();
+            }
+        }
+    }
+
+    fn stop_queue(&mut self) {
+        self.launcher.kill();
+        self.queue = None;
+    }
+
+    fn advance_queue(&mut self) {
+        loop {
+            let (id, step) = {
+                let Some(queue) = &mut self.queue else {
+                    return;
+                };
+                queue.index += 1;
+                match queue.ids.get(queue.index) {
+                    Some(id) => (id.clone(), queue.step),
+                    None => break,
+                }
+            };
+
+            if self.launch_id(&id) {
+                if let Some(queue) = &mut self.queue {
+                    queue.ends_at = Instant::now() + step;
+                }
+                return;
+            }
+        }
+
+        self.stop_queue();
+    }
+
+    /// @return whether a queue is currently active
+    fn tick_queue(&mut self, current_exited: bool) -> bool {
+        let due = match &self.queue {
+            Some(queue) => current_exited || Instant::now() >= queue.ends_at,
+            None => return false,
+        };
+        if due {
+            self.advance_queue();
+        }
+        self.queue.is_some()
+    }
+
+    /// @return true on success; false if the entry is gone or failed to start
+    fn launch_id(&mut self, id: &str) -> bool {
+        let config = self.config();
+        let Some(entry) = config.apps().iter().find(|app| app.id == id).cloned() else {
+            return false;
+        };
+        let exe = config.resolve_exe(&entry);
+        let cwd = config.resolve_cwd(&entry);
+        match self.launcher.launch(&entry, &exe, cwd.as_deref()) {
+            Ok(()) => {
+                self.error = None;
+                true
+            }
+            Err(error) => {
+                self.error = Some(format!("{error:#}"));
+                false
+            }
         }
     }
 
@@ -278,7 +413,77 @@ impl Hub {
             .into_any_element()
     }
 
-    fn render_search(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render_queue_toggle(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let active = self.queue_active();
+        let glyph = if active {
+            IconName::Pause
+        } else {
+            IconName::RunAll
+        };
+
+        div()
+            .id("queue-toggle")
+            .flex_none()
+            .flex()
+            .items_center()
+            .justify_center()
+            .size_8()
+            .rounded_lg()
+            .bg(rgb(theme::ACCENT))
+            .cursor_pointer()
+            .hover(|style| style.bg(rgb(theme::ACCENT_HOVER)))
+            .child(icon(glyph, rgb(theme::ON_ACCENT)).size_4())
+            .on_click(cx.listener(|this, _event, _window, cx| {
+                this.toggle_queue();
+                cx.notify();
+            }))
+    }
+
+    fn render_header(&self, cx: &mut Context<Self>) -> AnyElement {
+        let row = div().flex().items_center().gap_3().px(px(8.0));
+
+        if self.search_open {
+            // expanded: the field takes the whole header width.
+            row.child(self.render_search_field(cx)).into_any_element()
+        } else {
+            row.child(
+                div()
+                    .flex_1()
+                    .min_w_0()
+                    .overflow_hidden()
+                    .text_ellipsis()
+                    .whitespace_nowrap()
+                    .text_sm()
+                    .text_color(rgba(MUTED))
+                    .child(self.status_line()),
+            )
+            .child(self.render_queue_toggle(cx))
+            .child(self.render_search_icon(cx))
+            .into_any_element()
+        }
+    }
+
+    fn render_search_icon(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        div()
+            .id("search-icon")
+            .flex_none()
+            .flex()
+            .items_center()
+            .justify_center()
+            .size_8()
+            .rounded_lg()
+            .bg(rgba(SURFACE))
+            .cursor_pointer()
+            .hover(|style| style.bg(rgb(theme::ACCENT)))
+            .child(icon(IconName::Search, rgba(MUTED)).size_4())
+            .on_click(cx.listener(|this, _event, window, cx| {
+                this.search_open = true;
+                window.focus(&this.search_focus, cx);
+                cx.notify();
+            }))
+    }
+
+    fn render_search_field(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let placeholder = self.query.is_empty();
         let text = if placeholder {
             "Search".to_string()
@@ -292,7 +497,7 @@ impl Hub {
             .flex()
             .items_center()
             .gap_2()
-            .w(px(132.0))
+            .flex_1()
             .px(px(8.0))
             .py(px(5.0))
             .rounded_lg()
@@ -302,9 +507,31 @@ impl Hub {
             .child(
                 div()
                     .flex_1()
+                    .min_w_0()
+                    .overflow_hidden()
+                    .whitespace_nowrap()
                     .text_sm()
                     .when(placeholder, |el| el.text_color(rgba(MUTED)))
                     .child(text),
+            )
+            .child(
+                div()
+                    .id("search-close")
+                    .flex_none()
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .size_4()
+                    .rounded_md()
+                    .text_color(rgba(MUTED))
+                    .hover(|style| style.text_color(rgb(theme::TEXT)))
+                    .child("\u{00d7}")
+                    .on_click(cx.listener(|this, _event, _window, cx| {
+                        cx.stop_propagation();
+                        this.query.clear();
+                        this.search_open = false;
+                        cx.notify();
+                    })),
             )
             .on_key_down(cx.listener(Self::on_search_key))
             .on_click(cx.listener(|this, _event, window, cx| {
@@ -327,6 +554,17 @@ impl Hub {
             IconName::Pause
         } else {
             IconName::Play
+        };
+        let interactive = !self.queue_active();
+        let button_bg = if interactive {
+            rgb(theme::ACCENT)
+        } else {
+            rgba(0xff5e1f55)
+        };
+        let glyph_color = if interactive {
+            rgb(theme::ON_ACCENT)
+        } else {
+            rgba(0xfffbf599)
         };
 
         div()
@@ -367,23 +605,24 @@ impl Hub {
                     .justify_center()
                     .size_8()
                     .rounded_lg()
-                    .bg(rgb(theme::ACCENT))
-                    .text_color(rgb(theme::ON_ACCENT))
-                    .cursor_pointer()
-                    .hover(|style| style.bg(rgb(theme::ACCENT_HOVER)))
-                    .child(icon(glyph, rgb(theme::ON_ACCENT)).size_4())
-                    .on_click(cx.listener(move |this, _event, _window, cx| {
-                        let entry = this
-                            .config()
-                            .apps()
-                            .iter()
-                            .find(|app| app.id == id)
-                            .cloned();
-                        if let Some(entry) = entry {
-                            this.toggle(&entry);
-                        }
-                        cx.notify();
-                    })),
+                    .bg(button_bg)
+                    .when(interactive, |el| {
+                        el.cursor_pointer()
+                            .hover(|style| style.bg(rgb(theme::ACCENT_HOVER)))
+                            .on_click(cx.listener(move |this, _event, _window, cx| {
+                                let entry = this
+                                    .config()
+                                    .apps()
+                                    .iter()
+                                    .find(|app| app.id == id)
+                                    .cloned();
+                                if let Some(entry) = entry {
+                                    this.toggle(&entry);
+                                }
+                                cx.notify();
+                            }))
+                    })
+                    .child(icon(glyph, glyph_color).size_4()),
             )
             .into_any_element()
     }
@@ -397,25 +636,7 @@ impl Render for Hub {
             .size_full()
             .p_4()
             .gap_4()
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .gap_3()
-                    .px(px(8.0))
-                    .child(
-                        div()
-                            .flex_1()
-                            .min_w_0()
-                            .overflow_hidden()
-                            .text_ellipsis()
-                            .whitespace_nowrap()
-                            .text_sm()
-                            .text_color(rgba(MUTED))
-                            .child(self.status_line()),
-                    )
-                    .child(self.render_search(cx)),
-            )
+            .child(self.render_header(cx))
             .child(self.render_list(cx))
             .children(
                 self.store

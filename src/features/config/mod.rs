@@ -24,10 +24,14 @@ const DEFAULT_CONFIG_TEMPLATE: &str = include_str!(concat!(
     "/.github/assets/config.toml"
 ));
 
+const DEFAULT_QUEST_MINUTES: u32 = 15;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     #[serde(default = "default_apps_dir")]
     pub apps_dir: PathBuf,
+    #[serde(default = "default_quest_minutes")]
+    pub quest_minutes: u32,
     #[serde(default)]
     pub apps: Vec<AppEntry>,
     #[serde(default)]
@@ -38,6 +42,10 @@ pub struct Config {
 
 fn default_apps_dir() -> PathBuf {
     PathBuf::from(DEFAULT_APPS_DIR)
+}
+
+fn default_quest_minutes() -> u32 {
+    DEFAULT_QUEST_MINUTES
 }
 
 impl Config {
@@ -71,6 +79,9 @@ impl Config {
     }
 
     fn validate(&self) -> Result<()> {
+        if self.quest_minutes == 0 {
+            bail!("quest_minutes must be at least 1");
+        }
         let mut seen = HashSet::with_capacity(self.apps.len());
         for app in &self.apps {
             if app.id.trim().is_empty() {
@@ -265,5 +276,17 @@ mod tests {
     #[test]
     fn doubles_only_invalid_escapes() {
         assert_eq!(lenient_toml("\"a\\Eb\""), "\"a\\\\Eb\"");
+    }
+
+    #[test]
+    fn quest_minutes_defaults_when_omitted() {
+        let config: Config = toml::from_str("apps = []").unwrap();
+        assert_eq!(config.quest_minutes, DEFAULT_QUEST_MINUTES);
+    }
+
+    #[test]
+    fn validate_rejects_zero_quest_minutes() {
+        let config: Config = toml::from_str("quest_minutes = 0\napps = []").unwrap();
+        assert!(config.validate().is_err());
     }
 }
