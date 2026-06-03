@@ -2,13 +2,14 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, Weak};
 
 use anyhow::{Context, Result};
-use arc_swap::ArcSwap;
+use arc_swap::{ArcSwap, ArcSwapOption};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 
 use super::{CONFIG_FILE, Config, config_root};
 
 pub struct ConfigStore {
     current: ArcSwap<Config>,
+    error: ArcSwapOption<String>,
     dirty: AtomicBool,
     _watcher: Mutex<Option<RecommendedWatcher>>,
 }
@@ -18,6 +19,7 @@ impl ConfigStore {
         let config = Config::load()?;
         let store = Arc::new(Self {
             current: ArcSwap::from_pointee(config),
+            error: ArcSwapOption::empty(),
             dirty: AtomicBool::new(false),
             _watcher: Mutex::new(None),
         });
@@ -31,6 +33,10 @@ impl ConfigStore {
 
     pub fn snapshot(&self) -> Arc<Config> {
         self.current.load_full()
+    }
+
+    pub fn error(&self) -> Option<Arc<String>> {
+        self.error.load_full()
     }
 
     pub fn take_dirty(&self) -> bool {
@@ -53,10 +59,16 @@ fn build_watcher(store: Weak<ConfigStore>) -> Result<RecommendedWatcher> {
         let Some(store) = store.upgrade() else {
             return;
         };
-        if let Ok(config) = Config::reload() {
-            store.current.store(Arc::new(config));
-            store.dirty.store(true, Ordering::Release);
+        match Config::reload() {
+            Ok(config) => {
+                store.current.store(Arc::new(config));
+                store.error.store(None);
+            }
+            // keep the last good config live, but record why the reload failed
+            // so the UI can surface it instead of silently ignoring the edit.
+            Err(error) => store.error.store(Some(Arc::new(format!("{error:#}")))),
         }
+        store.dirty.store(true, Ordering::Release);
     })?;
 
     watcher

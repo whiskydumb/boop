@@ -25,6 +25,7 @@ pub struct Hub {
     query: String,
     search_focus: FocusHandle,
     update: Option<UpdateInfo>,
+    error_expanded: bool,
 }
 
 impl Hub {
@@ -35,6 +36,9 @@ impl Hub {
                 let alive = this.update(cx, |this, cx| {
                     let exited = this.launcher.poll();
                     let reloaded = this.store.take_dirty();
+                    if this.error_expanded && this.store.error().is_none() {
+                        this.error_expanded = false;
+                    }
                     if exited || reloaded || this.launcher.running_id().is_some() {
                         cx.notify();
                     }
@@ -71,6 +75,7 @@ impl Hub {
             query: String::new(),
             search_focus: cx.focus_handle(),
             update: None,
+            error_expanded: false,
         }
     }
 
@@ -209,6 +214,53 @@ impl Hub {
                     })),
             )
             .into_any_element()
+    }
+
+    fn render_error_bar(&self, message: &str, cx: &mut Context<Self>) -> AnyElement {
+        let bar = div()
+            .id("config-error-bar")
+            .flex()
+            .flex_col()
+            .flex_none()
+            .gap_1()
+            .px(px(10.0))
+            .py(px(6.0))
+            .rounded_lg()
+            .bg(rgb(theme::ERROR_BAR))
+            .text_color(rgb(theme::ON_ACCENT))
+            .text_sm()
+            .cursor_pointer()
+            .on_click(cx.listener(|this, _event, _window, cx| {
+                this.error_expanded = !this.error_expanded;
+                cx.notify();
+            }));
+
+        if self.error_expanded {
+            bar.child(
+                div()
+                    .id("config-error-detail")
+                    .flex()
+                    .flex_col()
+                    .max_h(px(160.0))
+                    .overflow_y_scroll()
+                    .children(
+                        message
+                            .lines()
+                            .map(|line| div().child(line.to_string()).into_any_element()),
+                    ),
+            )
+            .into_any_element()
+        } else {
+            bar.child(
+                div()
+                    .min_w_0()
+                    .overflow_hidden()
+                    .text_ellipsis()
+                    .whitespace_nowrap()
+                    .child(error_headline(message)),
+            )
+            .into_any_element()
+        }
     }
 
     fn empty_state(&self, message: &str) -> AnyElement {
@@ -366,11 +418,24 @@ impl Render for Hub {
             )
             .child(self.render_list(cx))
             .children(
+                self.store
+                    .error()
+                    .map(|message| self.render_error_bar(&message, cx)),
+            )
+            .children(
                 self.update
                     .as_ref()
                     .map(|info| self.render_update_bar(info, cx)),
             )
     }
+}
+
+fn error_headline(message: &str) -> String {
+    let line = match message.find("error at line") {
+        Some(start) => &message[start..],
+        None => message,
+    };
+    line.lines().next().unwrap_or(message).to_string()
 }
 
 fn format_runtime(elapsed: Duration) -> String {
