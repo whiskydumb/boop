@@ -244,3 +244,15 @@ id   = "dna-game"
 name = "Duet Night Abyss"
 exe  = "Duet Night Abyss/EM-Win64-Shipping.exe"
 args = []
+
+[[apps]]
+id   = "ea-sports-fc-26"
+name = "EA Sports FC 26"
+exe  = "EA Games/EA SPORTS FC 26/FC26.exe"
+args = []
+
+[[apps]]
+id   = "escape-the-backrooms"
+name = "Escape The Backrooms"
+exe  = "EscapeTheBackrooms/Binaries/Win64/Backrooms-Win64-Shipping.exe"
+args = []
